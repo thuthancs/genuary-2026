@@ -8,6 +8,7 @@ Code planning: This script generates an image containing a single geometric shap
 5. Save the image as a PNG file
 """
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter
 
 
 def _draw_pattern(ax,
@@ -107,6 +108,106 @@ def draw_grid_one_shape_one_color(radius: float,
     fig.savefig(output_path, dpi=300, bbox_inches="tight", pad_inches=0.1)
     plt.close(fig)
 
+
+def animate_one_shape_one_color(radius: float,
+                                color: str,
+                                alpha: float,
+                                max_iterations: int,
+                                shrink_start: float,
+                                shrink_end: float,
+                                frames: int,
+                                output_path: str):
+    """
+    Animate a single pattern while shrink_fraction changes from
+    shrink_start to shrink_end.
+    """
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+    margin = radius * 1.8
+    ax.set_xlim(-margin, margin)
+    ax.set_ylim(-margin, margin)
+
+    def fraction_for_frame(i: int) -> float:
+        if frames <= 1:
+            return shrink_start
+        return shrink_start + (shrink_end - shrink_start) * i / (frames - 1)
+
+    def update(frame_index: int):
+        ax.cla()
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(-margin, margin)
+        ax.set_ylim(-margin, margin)
+
+        shrink_fraction = fraction_for_frame(frame_index)
+        _draw_pattern(ax, radius, color, alpha, max_iterations,
+                      shrink_fraction, 0.0, 0.0)
+
+        return ax.patches
+
+    anim = FuncAnimation(fig, update, frames=frames, blit=True)
+    writer = PillowWriter(fps=10)
+    anim.save(output_path, writer=writer)
+    plt.close(fig)
+
+
+def animate_grid_one_shape_one_color(radius: float,
+                                     color: str,
+                                     alpha: float,
+                                     max_iterations: int,
+                                     shrink_start_3x3,
+                                     shrink_end_3x3,
+                                     frames: int,
+                                     output_path: str):
+    """
+    Animate a 3x3 grid of patterns, each with its own shrink_fraction
+    changing from shrink_start_3x3[row][col] to shrink_end_3x3[row][col].
+    """
+
+    fig, axes = plt.subplots(3, 3, figsize=(8, 8))
+
+    margin = radius * 1.8
+
+    def fraction_for_frame(i: int, start: float, end: float) -> float:
+        if frames <= 1:
+            return start
+        return start + (end - start) * i / (frames - 1)
+
+    def update(frame_index: int):
+        for row in range(3):
+            for col in range(3):
+                ax = axes[row][col]
+                ax.cla()
+                ax.set_aspect("equal")
+                ax.axis("off")
+                ax.set_xlim(-margin, margin)
+                ax.set_ylim(-margin, margin)
+
+                start = shrink_start_3x3[row][col]
+                end = shrink_end_3x3[row][col]
+                shrink_fraction = fraction_for_frame(frame_index, start, end)
+
+                _draw_pattern(
+                    ax,
+                    radius,
+                    color,
+                    alpha,
+                    max_iterations,
+                    shrink_fraction,
+                    0.0,
+                    0.0,
+                )
+
+        return []
+
+    anim = FuncAnimation(fig, update, frames=frames, blit=False)
+    writer = PillowWriter(fps=10)
+    anim.save(output_path, writer=writer)
+    plt.close(fig)
+
 if __name__ == "__main__":
     # You can tweak these values to experiment:
     # - radius changes the overall size
@@ -122,18 +223,52 @@ if __name__ == "__main__":
     #                          output_path = "prompt1/one_shape_one_color_single.png")
 
     # Example: 3x3 grid with different shrink fractions
-    grid_shrink_fractions = [
-        [0.7, 0.75, 0.8],
-        [0.85, 0.9, 0.95],
-        [1.0, 1.1, 1.2],
+    # grid_shrink_fractions = [
+    #     [0.7, 0.75, 0.8],
+    #     [0.85, 0.9, 0.95],
+    #     [1.0, 1.1, 1.2],
+    # ]
+    # draw_grid_one_shape_one_color(
+    #     radius=2,
+    #     color="pink",
+    #     alpha=0.2,
+    #     max_iterations=2,
+    #     shrink_fractions_3x3=grid_shrink_fractions,
+    #     output_path="prompt1/one_shape_one_color_grid.png",
+    # )
+
+    # Example: animated single pattern
+    # animate_one_shape_one_color(
+    #     radius=2,
+    #     color="pink",
+    #     alpha=0.2,
+    #     max_iterations=3,
+    #     shrink_start=0.5,
+    #     shrink_end=1.2,
+    #     frames=60,
+    #     output_path="prompt1/one_shape_one_color_anim.gif",
+    # )
+
+    # Example: animated 3x3 grid
+    shrink_start_grid = [
+        [0.5, 0.5, 0.5],
+        [0.5, 0.5, 0.5],
+        [0.5, 0.5, 0.5],
     ]
-    draw_grid_one_shape_one_color(
+    shrink_end_grid = [
+        [0.9, 1.0, 1.1],
+        [1.2, 1.3, 1.4],
+        [1.5, 1.6, 1.7],
+    ]
+    animate_grid_one_shape_one_color(
         radius=2,
         color="pink",
         alpha=0.2,
-        max_iterations=2,
-        shrink_fractions_3x3=grid_shrink_fractions,
-        output_path="prompt1/one_shape_one_color_grid.png",
+        max_iterations=3,
+        shrink_start_3x3=shrink_start_grid,
+        shrink_end_3x3=shrink_end_grid,
+        frames=50,
+        output_path="prompt1/one_shape_one_color_grid_anim.gif",
     )
         
         

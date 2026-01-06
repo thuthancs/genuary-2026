@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fireflies in the Dark Forest</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Background container */
+        .forest-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .forest-background {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Canvas overlay for fireflies */
+        #firefly-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+        }
+
+        /* Toggle switch container */
+        .toggle-container {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        .toggle-label {
+            color: #4a6741;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+            transition: all 0.5s ease;
+        }
+
+        .toggle-label.active {
+            color: #7fff5b;
+            text-shadow: 0 0 15px rgba(127, 255, 91, 0.6);
+        }
+
+        /* The toggle switch */
+        .toggle-switch {
+            position: relative;
+            width: 70px;
+            height: 36px;
+            cursor: pointer;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(145deg, #1a1a1a, #0d1a0d);
+            border-radius: 36px;
+            border: 2px solid #2a3a2a;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                inset 0 2px 8px rgba(0, 0, 0, 0.6),
+                0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 26px;
+            width: 26px;
+            left: 3px;
+            bottom: 3px;
+            background: linear-gradient(145deg, #3a4a3a, #2a3a2a);
+            border-radius: 50%;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                0 2px 6px rgba(0, 0, 0, 0.5),
+                inset 0 1px 2px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Active state */
+        .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(145deg, #1a2a1a, #0d1a0d);
+            border-color: #4a7a4a;
+            box-shadow: 
+                inset 0 2px 8px rgba(0, 0, 0, 0.4),
+                0 0 20px rgba(127, 255, 91, 0.2),
+                0 0 40px rgba(127, 255, 91, 0.1);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(34px);
+            background: linear-gradient(145deg, #9fff5b, #7fdf4b);
+            box-shadow: 
+                0 0 15px rgba(159, 255, 91, 0.8),
+                0 0 30px rgba(159, 255, 91, 0.4),
+                0 0 45px rgba(159, 255, 91, 0.2),
+                inset 0 1px 2px rgba(255, 255, 255, 0.4);
+        }
+
+        /* Glow ring effect when active */
+        .toggle-slider::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            border-radius: 40px;
+            background: transparent;
+            border: 1px solid transparent;
+            transition: all 0.4s ease;
+        }
+
+        .toggle-switch input:checked + .toggle-slider::after {
+            border-color: rgba(127, 255, 91, 0.3);
+            box-shadow: 0 0 25px rgba(127, 255, 91, 0.15);
+        }
+
+        /* Hover effect */
+        .toggle-switch:hover .toggle-slider::before {
+            box-shadow: 
+                0 2px 8px rgba(0, 0, 0, 0.6),
+                inset 0 1px 2px rgba(255, 255, 255, 0.15);
+        }
+
+        .toggle-switch:hover input:checked + .toggle-slider::before {
+            box-shadow: 
+                0 0 20px rgba(159, 255, 91, 0.9),
+                0 0 40px rgba(159, 255, 91, 0.5),
+                0 0 60px rgba(159, 255, 91, 0.3),
+                inset 0 1px 2px rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <!-- Dark forest background -->
+    <div class="forest-container">
+        <img src="dark_forest_background.jpg" alt="Dark Forest" class="forest-background">
+    </div>
+
+    <!-- Canvas for fireflies -->
+    <canvas id="firefly-canvas"></canvas>
+
+    <!-- Toggle switch -->
+    <div class="toggle-container">
+        <label class="toggle-switch" for="light-toggle">
+            <input type="checkbox" id="light-toggle" title="Toggle fireflies">
+            <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label" id="toggle-label">Light Off</span>
+    </div>
+
+    <script>
+        // ============================================
+        // Firefly Class
+        // ============================================
+        class Firefly {
+            constructor(canvas, index, totalFireflies) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.index = index;
+                this.totalFireflies = totalFireflies;
+                
+                // Random position - spread across entire canvas with padding
+                const padding = 100;
+                this.x = padding + Math.random() * (canvas.width - padding * 2);
+                this.y = padding + Math.random() * (canvas.height - padding * 2);
+                
+                // Random size (2-8px radius)
+                this.baseRadius = 2 + Math.random() * 6;
+                this.radius = this.baseRadius;
+                
+                // Glow properties
+                this.glowRadius = this.baseRadius * (3 + Math.random() * 2);
+                this.pulseSpeed = 0.5 + Math.random() * 1.5;
+                this.pulseOffset = Math.random() * Math.PI * 2;
+                this.minOpacity = 0.2 + Math.random() * 0.2;
+                this.maxOpacity = 0.7 + Math.random() * 0.3;
+                this.currentOpacity = 0;
+                
+                // Color variation (warm yellow-green)
+                const hue = 50 + Math.random() * 30; // 50-80 (yellow to yellow-green)
+                const saturation = 70 + Math.random() * 30;
+                const lightness = 50 + Math.random() * 20;
+                this.color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+                this.glowColor = `hsla(${hue}, ${saturation}%, ${lightness + 20}%, `;
+                
+                // Movement properties - more varied and natural
+                this.velocityX = (Math.random() - 0.5) * 1.2;
+                this.velocityY = (Math.random() - 0.5) * 1.2;
+                this.wanderAngle = Math.random() * Math.PI * 2;
+                this.wanderSpeed = 0.03 + Math.random() * 0.05;
+                this.wanderStrength = 0.15 + Math.random() * 0.1;
+                
+                // Fade in/out state
+                this.fadeProgress = 0;
+                this.isFadingIn = false;
+                this.isFadingOut = false;
+                this.isActive = false;
+                
+                // Staggered appearance delay - randomized for natural feel
+                this.appearDelay = Math.random() * 2000;
+            }
+            
+            startFadeIn(currentTime) {
+                this.isFadingIn = true;
+                this.isFadingOut = false;
+                this.fadeStartTime = currentTime + this.appearDelay;
+                this.isActive = true;
+            }
+            
+            startFadeOut() {
+                this.isFadingOut = true;
+                this.isFadingIn = false;
+                this.fadeStartTime = performance.now();
+            }
+            
+            update(time) {
+                if (!this.isActive) return;
+                
+                // Handle fade in
+                if (this.isFadingIn) {
+                    if (time >= this.fadeStartTime) {
+                        const fadeDuration = 800;
+                        const elapsed = time - this.fadeStartTime;
+                        this.fadeProgress = Math.min(elapsed / fadeDuration, 1);
+                        
+                        if (this.fadeProgress >= 1) {
+                            this.isFadingIn = false;
+                            this.fadeProgress = 1;
+                        }
+                    }
+                }
+                
+                // Handle fade out
+                if (this.isFadingOut) {
+                    const fadeDuration = 600;
+                    const elapsed = time - this.fadeStartTime;
+                    this.fadeProgress = Math.max(1 - elapsed / fadeDuration, 0);
+                    
+                    if (this.fadeProgress <= 0) {
+                        this.isActive = false;
+                        this.isFadingOut = false;
+                    }
+                }
+                
+                // Pulse animation
+                const pulseValue = Math.sin(time * 0.001 * this.pulseSpeed + this.pulseOffset);
+                const normalizedPulse = (pulseValue + 1) / 2;
+                this.currentOpacity = this.minOpacity + (this.maxOpacity - this.minOpacity) * normalizedPulse;
+                this.currentOpacity *= this.fadeProgress;
+                
+                // Size pulse
+                this.radius = this.baseRadius * (0.8 + 0.4 * normalizedPulse);
+                
+                // Wandering movement - more organic and free-floating
+                this.wanderAngle += (Math.random() - 0.5) * 0.3;
+                this.velocityX += Math.cos(this.wanderAngle) * this.wanderStrength;
+                this.velocityY += Math.sin(this.wanderAngle) * this.wanderStrength;
+                
+                // Add slight upward drift (fireflies tend to float up)
+                this.velocityY -= 0.02 + Math.random() * 0.02;
+                
+                // Apply friction for smooth movement
+                this.velocityX *= 0.96;
+                this.velocityY *= 0.96;
+                
+                // Limit velocity
+                const maxVel = 2.5;
+                const vel = Math.sqrt(this.velocityX ** 2 + this.velocityY ** 2);
+                if (vel > maxVel) {
+                    this.velocityX = (this.velocityX / vel) * maxVel;
+                    this.velocityY = (this.velocityY / vel) * maxVel;
+                }
+                
+                // Update position
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+                
+                // Wrap around edges for continuous floating (no clustering)
+                const buffer = 20;
+                if (this.x < -buffer) {
+                    this.x = this.canvas.width + buffer;
+                } else if (this.x > this.canvas.width + buffer) {
+                    this.x = -buffer;
+                }
+                
+                if (this.y < -buffer) {
+                    this.y = this.canvas.height + buffer;
+                    // Reset x position randomly when wrapping vertically
+                    this.x = Math.random() * this.canvas.width;
+                } else if (this.y > this.canvas.height + buffer) {
+                    this.y = -buffer;
+                    this.x = Math.random() * this.canvas.width;
+                }
+            }
+            
+            draw() {
+                if (!this.isActive || this.currentOpacity <= 0) return;
+                
+                const ctx = this.ctx;
+                
+                // Draw outer glow
+                const gradient = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.glowRadius * this.fadeProgress
+                );
+                gradient.addColorStop(0, this.glowColor + (this.currentOpacity * 0.8) + ')');
+                gradient.addColorStop(0.3, this.glowColor + (this.currentOpacity * 0.4) + ')');
+                gradient.addColorStop(0.6, this.glowColor + (this.currentOpacity * 0.1) + ')');
+                gradient.addColorStop(1, this.glowColor + '0)');
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.glowRadius * this.fadeProgress, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Draw core
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * this.fadeProgress, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.currentOpacity;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // ============================================
+        // Main Application
+        // ============================================
+        class FireflyApp {
+            constructor() {
+                this.canvas = document.getElementById('firefly-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.toggle = document.getElementById('light-toggle');
+                this.toggleLabel = document.getElementById('toggle-label');
+                
+                this.fireflies = [];
+                this.numFireflies = 80;
+                this.isLightOn = false;
+                this.animationId = null;
+                
+                this.init();
+            }
+            
+            init() {
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                this.toggle.addEventListener('change', () => this.handleToggle());
+                
+                // Create fireflies
+                this.createFireflies();
+                
+                // Start animation loop
+                this.animate();
+            }
+            
+            resizeCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                
+                // Reposition fireflies on resize
+                this.fireflies.forEach(firefly => {
+                    firefly.canvas = this.canvas;
+                    firefly.ctx = this.ctx;
+                    if (firefly.x > this.canvas.width) firefly.x = Math.random() * this.canvas.width;
+                    if (firefly.y > this.canvas.height) firefly.y = Math.random() * this.canvas.height;
+                });
+            }
+            
+            createFireflies() {
+                this.fireflies = [];
+                for (let i = 0; i < this.numFireflies; i++) {
+                    this.fireflies.push(new Firefly(this.canvas, i, this.numFireflies));
+                }
+            }
+            
+            handleToggle() {
+                this.isLightOn = this.toggle.checked;
+                
+                if (this.isLightOn) {
+                    this.toggleLabel.textContent = 'Light On';
+                    this.toggleLabel.classList.add('active');
+                    
+                    // Start fade in for all fireflies
+                    const currentTime = performance.now();
+                    this.fireflies.forEach(firefly => {
+                        firefly.startFadeIn(currentTime);
+                    });
+                } else {
+                    this.toggleLabel.textContent = 'Light Off';
+                    this.toggleLabel.classList.remove('active');
+                    
+                    // Start fade out for all fireflies
+                    this.fireflies.forEach(firefly => {
+                        firefly.startFadeOut();
+                    });
+                }
+            }
+            
+            animate(time = 0) {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Update and draw fireflies
+                this.fireflies.forEach(firefly => {
+                    firefly.update(time);
+                    firefly.draw();
+                });
+                
+                this.animationId = requestAnimationFrame((t) => this.animate(t));
+            }
+        }
+
+        // Initialize the app when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            new FireflyApp();
+        });
+    </script>
+</body>
+</html>
+
